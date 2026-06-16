@@ -20,13 +20,16 @@
   .tab.ativo.destravar { border-color: #1e8449; background: #eafaf1; color: #1e8449; }
   .dias-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 1.5rem; }
   .dia-btn { padding: 10px 12px; border: 0.5px solid #d0d0c8; border-radius: 8px; background: white; font-size: 13px; color: #1a1a1a; cursor: pointer; text-align: left; transition: all 0.15s; }
-  .dia-btn:hover { border-color: #888; background: #f9f9f7; }
+  .dia-btn:hover:not(:disabled) { border-color: #888; background: #f9f9f7; }
   .dia-btn.travar { border-color: #c0392b; background: #fdf2f1; color: #c0392b; }
   .dia-btn.destravar { border-color: #1e8449; background: #eafaf1; color: #1e8449; }
+  .dia-btn.bloqueado { border-color: #c0392b !important; background: #fdf2f1 !important; color: #c0392b !important; opacity: 0.6; cursor: default; }
+  .dia-btn.livre { border-color: #d0d0c8 !important; background: #f5f5f0 !important; color: #aaa !important; opacity: 0.6; cursor: default; }
   .dia-btn .dia-nome { font-weight: 500; font-size: 13px; }
   .dia-btn .dia-data { font-size: 11px; color: #999; margin-top: 2px; }
   .dia-btn.travar .dia-data { color: #e74c3c; }
   .dia-btn.destravar .dia-data { color: #1e8449; }
+  .dia-btn .dia-badge { font-size: 10px; margin-top: 3px; color: #c0392b; }
   .btn-acao { width: 100%; padding: 12px; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
   .btn-acao.travar { background: #c0392b; }
   .btn-acao.travar:hover { background: #a93226; }
@@ -37,6 +40,7 @@
   .status.ok { background: #eafaf1; color: #1e8449; border: 0.5px solid #a9dfbf; }
   .status.erro { background: #fdf2f1; color: #c0392b; border: 0.5px solid #f5b7b1; }
   .sem-medico { text-align: center; color: #aaa; font-size: 13px; padding: 1.5rem 0; }
+  .carregando { text-align: center; color: #aaa; font-size: 13px; padding: 1.5rem 0; }
   .selecionados-info { font-size: 12px; color: #888; margin-bottom: 1rem; }
   .selecionados-info span { font-weight: 500; }
   .selecionados-info span.travar { color: #c0392b; }
@@ -92,32 +96,33 @@
 </div>
 
 <script>
-const DIAS_MAP = { 0:'domingo', 1:'segunda', 2:'terca', 3:'quarta', 4:'quinta', 5:'sexta', 6:'sabado' };
+const DIAS_MAP   = { 0:'domingo', 1:'segunda', 2:'terca', 3:'quarta', 4:'quinta', 5:'sexta', 6:'sabado' };
 const DIAS_LABEL = { domingo:'Dom', segunda:'Seg', terca:'Ter', quarta:'Qua', quinta:'Qui', sexta:'Sex', sabado:'Sáb' };
 
 let diasSelecionados = [];
 let modo = 'travar';
+let diasTravados = [];
+let opcoesCached = [];
+let medicoIdCached = '';
 
 function setModo(novoModo) {
   modo = novoModo;
   diasSelecionados = [];
-
-  document.getElementById('tab-travar').className = 'tab' + (modo === 'travar' ? ' ativo travar' : '');
+  document.getElementById('tab-travar').className   = 'tab' + (modo === 'travar'    ? ' ativo travar'    : '');
   document.getElementById('tab-destravar').className = 'tab' + (modo === 'destravar' ? ' ativo destravar' : '');
-
   const btn = document.getElementById('btn-acao');
-  btn.className = 'btn-acao ' + modo;
+  btn.className   = 'btn-acao ' + modo;
   btn.textContent = modo === 'travar' ? 'Travar dias selecionados' : 'Destravar dias selecionados';
-
   document.getElementById('qtd-selecionados').className = modo;
   document.getElementById('status').style.display = 'none';
-
-  gerarDias();
+  renderizarDias();
 }
 
-function gerarDias() {
+async function gerarDias() {
   const sel = document.getElementById('medico').value;
   diasSelecionados = [];
+  diasTravados = [];
+  opcoesCached = [];
   atualizarBotao();
 
   if (!sel) {
@@ -125,7 +130,10 @@ function gerarDias() {
     return;
   }
 
+  document.getElementById('container-dias').innerHTML = '<div class="carregando">⏳ Carregando agenda...</div>';
+
   const [nome, id, diasStr] = sel.split('|');
+  medicoIdCached = id;
   const diasAtendimento = diasStr.split(',');
   const hoje = new Date();
   const opcoes = [];
@@ -135,22 +143,53 @@ function gerarDias() {
     d.setDate(hoje.getDate() + i);
     const diaSem = DIAS_MAP[d.getDay()];
     if (diasAtendimento.includes(diaSem)) {
-      const dd = String(d.getDate()).padStart(2,'0');
-      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd   = String(d.getDate()).padStart(2,'0');
+      const mm   = String(d.getMonth()+1).padStart(2,'0');
       const yyyy = d.getFullYear();
       opcoes.push({ data: `${dd}/${mm}/${yyyy}`, diaSem, label: `${DIAS_LABEL[diaSem]} ${dd}/${mm}` });
     }
   }
 
+  opcoesCached = opcoes;
+
+  try {
+    const resp = await fetch('https://htechsolucoes.app.n8n.cloud/webhook/status-agenda', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ medico_id: id, dias: opcoes.map(o => o.data) })
+    });
+    const data = await resp.json();
+    diasTravados = data.travados ?? [];
+  } catch(e) {
+    diasTravados = [];
+  }
+
+  renderizarDias();
+}
+
+function renderizarDias() {
+  if (!opcoesCached.length) return;
+
   const grid = document.createElement('div');
   grid.className = 'dias-grid';
 
-  opcoes.forEach(op => {
+  opcoesCached.forEach(op => {
+    const travado = diasTravados.includes(op.data);
+    const desabilitado = (modo === 'travar' && travado) || (modo === 'destravar' && !travado);
+
     const btn = document.createElement('button');
-    btn.className = 'dia-btn';
     btn.dataset.data = op.data;
-    btn.innerHTML = `<div class="dia-nome">${DIAS_LABEL[op.diaSem]}</div><div class="dia-data">${op.label}</div>`;
-    btn.onclick = () => toggleDia(btn, op.data);
+    btn.disabled = desabilitado;
+
+    if (desabilitado) {
+      btn.className = 'dia-btn ' + (travado ? 'bloqueado' : 'livre');
+    } else {
+      btn.className = 'dia-btn';
+      btn.onclick = () => toggleDia(btn, op.data);
+    }
+
+    const badge = travado ? '<div class="dia-badge">🔒 Travado</div>' : '';
+    btn.innerHTML = `<div class="dia-nome">${DIAS_LABEL[op.diaSem]}</div><div class="dia-data">${op.label}</div>${badge}`;
     grid.appendChild(btn);
   });
 
@@ -170,12 +209,12 @@ function toggleDia(btn, data) {
 }
 
 function atualizarBotao() {
-  const btn = document.getElementById('btn-acao');
+  const btn  = document.getElementById('btn-acao');
   const info = document.getElementById('info-selecionados');
-  const qtd = document.getElementById('qtd-selecionados');
-  btn.disabled = diasSelecionados.length === 0;
+  const qtd  = document.getElementById('qtd-selecionados');
+  btn.disabled       = diasSelecionados.length === 0;
   info.style.display = diasSelecionados.length > 0 ? 'block' : 'none';
-  qtd.textContent = diasSelecionados.length;
+  qtd.textContent    = diasSelecionados.length;
 }
 
 async function executarAcao() {
@@ -183,10 +222,10 @@ async function executarAcao() {
   if (!sel || diasSelecionados.length === 0) return;
 
   const [nome, medicoId] = sel.split('|');
-  const btn = document.getElementById('btn-acao');
+  const btn    = document.getElementById('btn-acao');
   const status = document.getElementById('status');
 
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = 'Enviando...';
   status.style.display = 'none';
 
@@ -201,21 +240,21 @@ async function executarAcao() {
       body: JSON.stringify({ medico_nome: nome, medico_id: medicoId, dias: diasSelecionados })
     });
 
-    const data = await resp.json();
+    await resp.json();
     const emoji = modo === 'travar' ? '🔒' : '🔓';
     const acao  = modo === 'travar' ? 'travado(s)' : 'destravado(s)';
 
-    status.className = 'status ok';
-    status.textContent = `${emoji} ${diasSelecionados.length} dia(s) ${acao} com sucesso para ${nome}!`;
+    status.className     = 'status ok';
+    status.textContent   = `${emoji} ${diasSelecionados.length} dia(s) ${acao} com sucesso para ${nome}!`;
     status.style.display = 'block';
     diasSelecionados = [];
-    gerarDias();
+    await gerarDias();
   } catch (e) {
-    status.className = 'status erro';
-    status.textContent = 'Erro ao conectar com o servidor. Tente novamente.';
+    status.className     = 'status erro';
+    status.textContent   = 'Erro ao conectar com o servidor. Tente novamente.';
     status.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = modo === 'travar' ? 'Travar dias selecionados' : 'Destravar dias selecionados';
+    btn.disabled         = false;
+    btn.textContent      = modo === 'travar' ? 'Travar dias selecionados' : 'Destravar dias selecionados';
   }
 }
 </script>
