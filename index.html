@@ -7,36 +7,47 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-  .card { background: white; border-radius: 16px; border: 0.5px solid #e0e0d8; padding: 2rem; width: 100%; max-width: 480px; }
+  .card { background: white; border-radius: 16px; border: 0.5px solid #e0e0d8; padding: 2rem; width: 100%; max-width: 520px; }
   .logo { text-align: center; margin-bottom: 1.5rem; }
   .logo h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.3px; }
   .logo p { font-size: 13px; color: #888; margin-top: 4px; }
   label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; }
   select { width: 100%; padding: 10px 12px; border: 0.5px solid #d0d0c8; border-radius: 8px; font-size: 14px; color: #1a1a1a; background: white; margin-bottom: 1.25rem; appearance: none; cursor: pointer; }
   select:focus { outline: none; border-color: #888; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+  .tab { flex: 1; padding: 9px; border: 0.5px solid #d0d0c8; border-radius: 8px; background: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; color: #555; }
+  .tab.ativo.travar { border-color: #c0392b; background: #fdf2f1; color: #c0392b; }
+  .tab.ativo.destravar { border-color: #1e8449; background: #eafaf1; color: #1e8449; }
   .dias-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 1.5rem; }
   .dia-btn { padding: 10px 12px; border: 0.5px solid #d0d0c8; border-radius: 8px; background: white; font-size: 13px; color: #1a1a1a; cursor: pointer; text-align: left; transition: all 0.15s; }
   .dia-btn:hover { border-color: #888; background: #f9f9f7; }
-  .dia-btn.selecionado { border-color: #c0392b; background: #fdf2f1; color: #c0392b; }
+  .dia-btn.travar { border-color: #c0392b; background: #fdf2f1; color: #c0392b; }
+  .dia-btn.destravar { border-color: #1e8449; background: #eafaf1; color: #1e8449; }
   .dia-btn .dia-nome { font-weight: 500; font-size: 13px; }
   .dia-btn .dia-data { font-size: 11px; color: #999; margin-top: 2px; }
-  .dia-btn.selecionado .dia-data { color: #e74c3c; }
-  .btn-travar { width: 100%; padding: 12px; background: #c0392b; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
-  .btn-travar:hover { background: #a93226; }
-  .btn-travar:disabled { background: #ccc; cursor: not-allowed; }
+  .dia-btn.travar .dia-data { color: #e74c3c; }
+  .dia-btn.destravar .dia-data { color: #1e8449; }
+  .btn-acao { width: 100%; padding: 12px; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-acao.travar { background: #c0392b; }
+  .btn-acao.travar:hover { background: #a93226; }
+  .btn-acao.destravar { background: #1e8449; }
+  .btn-acao.destravar:hover { background: #196f3d; }
+  .btn-acao:disabled { background: #ccc; cursor: not-allowed; }
   .status { margin-top: 1rem; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
   .status.ok { background: #eafaf1; color: #1e8449; border: 0.5px solid #a9dfbf; }
   .status.erro { background: #fdf2f1; color: #c0392b; border: 0.5px solid #f5b7b1; }
   .sem-medico { text-align: center; color: #aaa; font-size: 13px; padding: 1.5rem 0; }
   .selecionados-info { font-size: 12px; color: #888; margin-bottom: 1rem; }
-  .selecionados-info span { color: #c0392b; font-weight: 500; }
+  .selecionados-info span { font-weight: 500; }
+  .selecionados-info span.travar { color: #c0392b; }
+  .selecionados-info span.destravar { color: #1e8449; }
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">
-    <h1>🔒 Trava de Agenda</h1>
-    <p>Real URO  Painel administrativo</p>
+    <h1>🗓️ Gestão de Agenda</h1>
+    <p>Real URO — Painel administrativo</p>
   </div>
 
   <label for="medico">Médico</label>
@@ -60,15 +71,20 @@
     <option value="Dra. Yukie Konishi|144015|quarta">Dra. Yukie Konishi</option>
   </select>
 
+  <div class="tabs">
+    <button class="tab ativo travar" id="tab-travar" onclick="setModo('travar')">🔒 Travar dias</button>
+    <button class="tab destravar" id="tab-destravar" onclick="setModo('destravar')">🔓 Destravar dias</button>
+  </div>
+
   <div id="container-dias">
     <div class="sem-medico">Selecione um médico para ver os dias disponíveis</div>
   </div>
 
   <div class="selecionados-info" id="info-selecionados" style="display:none">
-    <span id="qtd-selecionados">0</span> dia(s) selecionado(s) para bloqueio
+    <span id="qtd-selecionados" class="travar">0</span> dia(s) selecionado(s)
   </div>
 
-  <button class="btn-travar" id="btn-travar" disabled onclick="travarDias()">
+  <button class="btn-acao travar" id="btn-acao" disabled onclick="executarAcao()">
     Travar dias selecionados
   </button>
 
@@ -78,9 +94,26 @@
 <script>
 const DIAS_MAP = { 0:'domingo', 1:'segunda', 2:'terca', 3:'quarta', 4:'quinta', 5:'sexta', 6:'sabado' };
 const DIAS_LABEL = { domingo:'Dom', segunda:'Seg', terca:'Ter', quarta:'Qua', quinta:'Qui', sexta:'Sex', sabado:'Sáb' };
-const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 let diasSelecionados = [];
+let modo = 'travar';
+
+function setModo(novoModo) {
+  modo = novoModo;
+  diasSelecionados = [];
+
+  document.getElementById('tab-travar').className = 'tab' + (modo === 'travar' ? ' ativo travar' : '');
+  document.getElementById('tab-destravar').className = 'tab' + (modo === 'destravar' ? ' ativo destravar' : '');
+
+  const btn = document.getElementById('btn-acao');
+  btn.className = 'btn-acao ' + modo;
+  btn.textContent = modo === 'travar' ? 'Travar dias selecionados' : 'Destravar dias selecionados';
+
+  document.getElementById('qtd-selecionados').className = modo;
+  document.getElementById('status').style.display = 'none';
+
+  gerarDias();
+}
 
 function gerarDias() {
   const sel = document.getElementById('medico').value;
@@ -94,7 +127,6 @@ function gerarDias() {
 
   const [nome, id, diasStr] = sel.split('|');
   const diasAtendimento = diasStr.split(',');
-
   const hoje = new Date();
   const opcoes = [];
 
@@ -106,19 +138,17 @@ function gerarDias() {
       const dd = String(d.getDate()).padStart(2,'0');
       const mm = String(d.getMonth()+1).padStart(2,'0');
       const yyyy = d.getFullYear();
-      opcoes.push({ data: `${dd}/${mm}/${yyyy}`, dataISO: `${yyyy}-${mm}-${dd}`, diaSem, label: `${DIAS_LABEL[diaSem]} ${dd}/${mm}` });
+      opcoes.push({ data: `${dd}/${mm}/${yyyy}`, diaSem, label: `${DIAS_LABEL[diaSem]} ${dd}/${mm}` });
     }
   }
 
   const grid = document.createElement('div');
   grid.className = 'dias-grid';
-  grid.id = 'dias-grid';
 
   opcoes.forEach(op => {
     const btn = document.createElement('button');
     btn.className = 'dia-btn';
     btn.dataset.data = op.data;
-    btn.dataset.iso = op.dataISO;
     btn.innerHTML = `<div class="dia-nome">${DIAS_LABEL[op.diaSem]}</div><div class="dia-data">${op.label}</div>`;
     btn.onclick = () => toggleDia(btn, op.data);
     grid.appendChild(btn);
@@ -131,16 +161,16 @@ function gerarDias() {
 function toggleDia(btn, data) {
   if (diasSelecionados.includes(data)) {
     diasSelecionados = diasSelecionados.filter(d => d !== data);
-    btn.classList.remove('selecionado');
+    btn.classList.remove(modo);
   } else {
     diasSelecionados.push(data);
-    btn.classList.add('selecionado');
+    btn.classList.add(modo);
   }
   atualizarBotao();
 }
 
 function atualizarBotao() {
-  const btn = document.getElementById('btn-travar');
+  const btn = document.getElementById('btn-acao');
   const info = document.getElementById('info-selecionados');
   const qtd = document.getElementById('qtd-selecionados');
   btn.disabled = diasSelecionados.length === 0;
@@ -148,33 +178,35 @@ function atualizarBotao() {
   qtd.textContent = diasSelecionados.length;
 }
 
-async function travarDias() {
+async function executarAcao() {
   const sel = document.getElementById('medico').value;
   if (!sel || diasSelecionados.length === 0) return;
 
   const [nome, medicoId] = sel.split('|');
-  const btn = document.getElementById('btn-travar');
+  const btn = document.getElementById('btn-acao');
   const status = document.getElementById('status');
 
   btn.disabled = true;
   btn.textContent = 'Enviando...';
   status.style.display = 'none';
 
+  const url = modo === 'travar'
+    ? 'https://htechsolucoes.app.n8n.cloud/webhook/travafila'
+    : 'https://htechsolucoes.app.n8n.cloud/webhook/destravaagenda';
+
   try {
-    const resp = await fetch('https://htechsolucoes.app.n8n.cloud/webhook/travaagenda', {
+    const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        medico_nome: nome,
-        medico_id: medicoId,
-        dias: diasSelecionados
-      })
+      body: JSON.stringify({ medico_nome: nome, medico_id: medicoId, dias: diasSelecionados })
     });
 
     const data = await resp.json();
+    const emoji = modo === 'travar' ? '🔒' : '🔓';
+    const acao  = modo === 'travar' ? 'travado(s)' : 'destravado(s)';
 
     status.className = 'status ok';
-    status.textContent = `✓ ${diasSelecionados.length} dia(s) travado(s) com sucesso para ${nome}!`;
+    status.textContent = `${emoji} ${diasSelecionados.length} dia(s) ${acao} com sucesso para ${nome}!`;
     status.style.display = 'block';
     diasSelecionados = [];
     gerarDias();
@@ -183,7 +215,7 @@ async function travarDias() {
     status.textContent = 'Erro ao conectar com o servidor. Tente novamente.';
     status.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Travar dias selecionados';
+    btn.textContent = modo === 'travar' ? 'Travar dias selecionados' : 'Destravar dias selecionados';
   }
 }
 </script>
