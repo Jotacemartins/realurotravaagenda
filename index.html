@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real URO — Trava de Agenda</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+  .card { background: white; border-radius: 16px; border: 0.5px solid #e0e0d8; padding: 2rem; width: 100%; max-width: 480px; }
+  .logo { text-align: center; margin-bottom: 1.5rem; }
+  .logo h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.3px; }
+  .logo p { font-size: 13px; color: #888; margin-top: 4px; }
+  label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; }
+  select { width: 100%; padding: 10px 12px; border: 0.5px solid #d0d0c8; border-radius: 8px; font-size: 14px; color: #1a1a1a; background: white; margin-bottom: 1.25rem; appearance: none; cursor: pointer; }
+  select:focus { outline: none; border-color: #888; }
+  .dias-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 1.5rem; }
+  .dia-btn { padding: 10px 12px; border: 0.5px solid #d0d0c8; border-radius: 8px; background: white; font-size: 13px; color: #1a1a1a; cursor: pointer; text-align: left; transition: all 0.15s; }
+  .dia-btn:hover { border-color: #888; background: #f9f9f7; }
+  .dia-btn.selecionado { border-color: #c0392b; background: #fdf2f1; color: #c0392b; }
+  .dia-btn .dia-nome { font-weight: 500; font-size: 13px; }
+  .dia-btn .dia-data { font-size: 11px; color: #999; margin-top: 2px; }
+  .dia-btn.selecionado .dia-data { color: #e74c3c; }
+  .btn-travar { width: 100%; padding: 12px; background: #c0392b; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-travar:hover { background: #a93226; }
+  .btn-travar:disabled { background: #ccc; cursor: not-allowed; }
+  .status { margin-top: 1rem; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
+  .status.ok { background: #eafaf1; color: #1e8449; border: 0.5px solid #a9dfbf; }
+  .status.erro { background: #fdf2f1; color: #c0392b; border: 0.5px solid #f5b7b1; }
+  .sem-medico { text-align: center; color: #aaa; font-size: 13px; padding: 1.5rem 0; }
+  .selecionados-info { font-size: 12px; color: #888; margin-bottom: 1rem; }
+  .selecionados-info span { color: #c0392b; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>🔒 Trava de Agenda</h1>
+    <p>Real URO  Painel administrativo</p>
+  </div>
+
+  <label for="medico">Médico</label>
+  <select id="medico" onchange="gerarDias()">
+    <option value="">Selecione o médico...</option>
+    <option value="Dr. Abelardo Alves|23981|segunda,terca,quarta,quinta">Dr. Abelardo Alves</option>
+    <option value="Dr. Alexandre Holanda|110182|quarta,quinta">Dr. Alexandre Holanda</option>
+    <option value="Dr. Andrei Nunes|134083|segunda,terca,quarta,quinta,sexta">Dr. Andrei Nunes</option>
+    <option value="Dr. Antônio Cesar|11564|segunda,quinta">Dr. Antônio Cesar</option>
+    <option value="Dr. Bruno Balio|100232|terca,quarta,sexta">Dr. Bruno Balio</option>
+    <option value="Dr. Carlos Flávio|27610|terca,quarta,sexta">Dr. Carlos Flávio</option>
+    <option value="Dra. Carolina Mayumi|23982|quinta,sexta">Dra. Carolina Mayumi</option>
+    <option value="Dr. Eulino Barbosa|134120|terca,quinta">Dr. Eulino Barbosa</option>
+    <option value="Dr. Guilherme Lima|11566|segunda">Dr. Guilherme Lima</option>
+    <option value="Dr. Márcio Novaes|134121|terca,quarta,quinta">Dr. Márcio Novaes</option>
+    <option value="Dr. Renato Leal|23984|terca,quinta">Dr. Renato Leal</option>
+    <option value="Dr. Rodrigo Brasileiro|24269|segunda,quarta,sexta">Dr. Rodrigo Brasileiro</option>
+    <option value="Dr. Rômulo Augusto|134124|quinta">Dr. Rômulo Augusto</option>
+    <option value="Dr. Rodolfo Brilhante|870|quarta">Dr. Rodolfo Brilhante</option>
+    <option value="Dr. Sérgio Moraes|11567|segunda,terca,quarta,quinta,sexta">Dr. Sérgio Moraes</option>
+    <option value="Dra. Yukie Konishi|144015|quarta">Dra. Yukie Konishi</option>
+  </select>
+
+  <div id="container-dias">
+    <div class="sem-medico">Selecione um médico para ver os dias disponíveis</div>
+  </div>
+
+  <div class="selecionados-info" id="info-selecionados" style="display:none">
+    <span id="qtd-selecionados">0</span> dia(s) selecionado(s) para bloqueio
+  </div>
+
+  <button class="btn-travar" id="btn-travar" disabled onclick="travarDias()">
+    Travar dias selecionados
+  </button>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+const DIAS_MAP = { 0:'domingo', 1:'segunda', 2:'terca', 3:'quarta', 4:'quinta', 5:'sexta', 6:'sabado' };
+const DIAS_LABEL = { domingo:'Dom', segunda:'Seg', terca:'Ter', quarta:'Qua', quinta:'Qui', sexta:'Sex', sabado:'Sáb' };
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+let diasSelecionados = [];
+
+function gerarDias() {
+  const sel = document.getElementById('medico').value;
+  diasSelecionados = [];
+  atualizarBotao();
+
+  if (!sel) {
+    document.getElementById('container-dias').innerHTML = '<div class="sem-medico">Selecione um médico para ver os dias disponíveis</div>';
+    return;
+  }
+
+  const [nome, id, diasStr] = sel.split('|');
+  const diasAtendimento = diasStr.split(',');
+
+  const hoje = new Date();
+  const opcoes = [];
+
+  for (let i = 1; i <= 60 && opcoes.length < 14; i++) {
+    const d = new Date(hoje);
+    d.setDate(hoje.getDate() + i);
+    const diaSem = DIAS_MAP[d.getDay()];
+    if (diasAtendimento.includes(diaSem)) {
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yyyy = d.getFullYear();
+      opcoes.push({ data: `${dd}/${mm}/${yyyy}`, dataISO: `${yyyy}-${mm}-${dd}`, diaSem, label: `${DIAS_LABEL[diaSem]} ${dd}/${mm}` });
+    }
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'dias-grid';
+  grid.id = 'dias-grid';
+
+  opcoes.forEach(op => {
+    const btn = document.createElement('button');
+    btn.className = 'dia-btn';
+    btn.dataset.data = op.data;
+    btn.dataset.iso = op.dataISO;
+    btn.innerHTML = `<div class="dia-nome">${DIAS_LABEL[op.diaSem]}</div><div class="dia-data">${op.label}</div>`;
+    btn.onclick = () => toggleDia(btn, op.data);
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('container-dias').innerHTML = '';
+  document.getElementById('container-dias').appendChild(grid);
+}
+
+function toggleDia(btn, data) {
+  if (diasSelecionados.includes(data)) {
+    diasSelecionados = diasSelecionados.filter(d => d !== data);
+    btn.classList.remove('selecionado');
+  } else {
+    diasSelecionados.push(data);
+    btn.classList.add('selecionado');
+  }
+  atualizarBotao();
+}
+
+function atualizarBotao() {
+  const btn = document.getElementById('btn-travar');
+  const info = document.getElementById('info-selecionados');
+  const qtd = document.getElementById('qtd-selecionados');
+  btn.disabled = diasSelecionados.length === 0;
+  info.style.display = diasSelecionados.length > 0 ? 'block' : 'none';
+  qtd.textContent = diasSelecionados.length;
+}
+
+async function travarDias() {
+  const sel = document.getElementById('medico').value;
+  if (!sel || diasSelecionados.length === 0) return;
+
+  const [nome, medicoId] = sel.split('|');
+  const btn = document.getElementById('btn-travar');
+  const status = document.getElementById('status');
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  status.style.display = 'none';
+
+  try {
+    const resp = await fetch('https://htechsolucoes.app.n8n.cloud/webhook/travaagenda', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        medico_nome: nome,
+        medico_id: medicoId,
+        dias: diasSelecionados
+      })
+    });
+
+    const data = await resp.json();
+
+    status.className = 'status ok';
+    status.textContent = `✓ ${diasSelecionados.length} dia(s) travado(s) com sucesso para ${nome}!`;
+    status.style.display = 'block';
+    diasSelecionados = [];
+    gerarDias();
+  } catch (e) {
+    status.className = 'status erro';
+    status.textContent = 'Erro ao conectar com o servidor. Tente novamente.';
+    status.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Travar dias selecionados';
+  }
+}
+</script>
+</body>
+</html>
